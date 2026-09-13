@@ -8,9 +8,15 @@ import AdminApp from './admin/AdminApp'
 export default function App() {
   const { booted, session, teams, toast, logout } = useApp()
   const [minHold, setMinHold] = useState(false)
+  const [forceSkip, setForceSkip] = useState(false)
 
   useEffect(() => {
     const t = setTimeout(() => setMinHold(true), 1600)
+    return () => clearTimeout(t)
+  }, [])
+
+  useEffect(() => {
+    const t = setTimeout(() => setForceSkip(true), 7000)
     return () => clearTimeout(t)
   }, [])
 
@@ -25,9 +31,11 @@ export default function App() {
     }
   }, [booted, session, teams, toast, logout])
 
-  const splashDone = booted && minHold
+  const splashDone = (booted && minHold) || forceSkip
 
-  if (!booted) return <Splash done={false} />
+  if (!booted) {
+    return forceSkip ? <Splash done /> : <Splash done={false} />
+  }
 
   return (
     <>

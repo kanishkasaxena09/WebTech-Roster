@@ -33,7 +33,7 @@ const labels = {
 }
 
 export default function AdminApp() {
-  const { syncState, logout, teams, updateTeams, toast } = useApp()
+  const { syncState, logout, teams, updateTeams, toast, project } = useApp()
   const [view, setViewState] = useState(() => {
     const v = location.hash.replace('#/', '')
     return VALID_VIEWS.includes(v) ? v : 'teams'
@@ -116,10 +116,10 @@ export default function AdminApp() {
         </div>
         <div className="topbar-right">
           <div className="user">
-            <div className="avatar">A</div>
+            <div className="avatar">{project ? project.name[0] : 'A'}</div>
             <div>
-              <div className="name">Course Admin</div>
-              <div className="sub">Web Tech · Sem 5</div>
+              <div className="name">{project ? project.name : 'Project'} Admin</div>
+              <div className="sub">{project ? project.name : ''}</div>
             </div>
           </div>
           <button className="logout-btn" onClick={logout}>Log out</button>

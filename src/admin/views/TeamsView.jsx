@@ -3,7 +3,7 @@ import SyncNote from '../../components/SyncNote'
 import { colorFor, initials, matchesSearch, teamSize } from '../../utils'
 
 export default function TeamsView({ search, onAdd, onEdit, onDelete, onOpen }) {
-  const { teams, syncState } = useApp()
+  const { teams, syncState, live } = useApp()
   const visible = teams.filter(t => matchesSearch(t, search))
   const totalPeople = teams.reduce((s, t) => s + teamSize(t), 0)
   const avgSize = teams.length ? (totalPeople / teams.length).toFixed(1) : '0'
@@ -28,7 +28,7 @@ export default function TeamsView({ search, onAdd, onEdit, onDelete, onOpen }) {
           <button className="btn-primary" onClick={onAdd}>+ Add team</button>
         </div>
       </div>
-      <SyncNote state={syncState} />
+      <SyncNote state={syncState} live={live} />
 
       <div className="row1">
         <div className="card">

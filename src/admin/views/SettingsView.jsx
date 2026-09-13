@@ -3,7 +3,7 @@ import { useApp } from '../../store'
 import { randomPass, cleanImported } from '../../utils'
 
 export default function SettingsView({ requestConfirm }) {
-  const { teams, updateTeams, setAdminPassword, resetData, toast } = useApp()
+  const { teams, updateTeams, setAdminPassword, resetData, toast, project } = useApp()
   const importRef = useRef(null)
   const [newPass, setNewPass] = useState('')
 
@@ -12,7 +12,7 @@ export default function SettingsView({ requestConfirm }) {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = 'web-tech-teams.json'
+    a.download = `${(project ? project.name : 'project').replace(/\s+/g, '-').toLowerCase()}-teams.json`
     document.body.appendChild(a)
     a.click()
     a.remove()
@@ -54,7 +54,7 @@ export default function SettingsView({ requestConfirm }) {
   const handleReset = () => {
     requestConfirm(
       'Reset to sample data?',
-      'This replaces the current roster and all logins with the original 4 teams. This cannot be undone.',
+      'This replaces this project\u2019s roster, logins, and admin password with the built-in sample data. This cannot be undone.',
       () => {
         resetData()
         toast('Roster reset to sample data.')

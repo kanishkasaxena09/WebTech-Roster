@@ -66,6 +66,24 @@ export function backfillTeam(team) {
   return t
 }
 
+export function backfillProject(p, index = 0) {
+  const proj = { ...p }
+  if (!proj.id) proj.id = 'p' + (index + 1)
+  if (!proj.name) proj.name = proj.id
+  proj.admin = proj.admin && typeof proj.admin === 'object'
+    ? { username: proj.admin.username || 'admin', password: proj.admin.password || 'admin123' }
+    : { username: 'admin', password: 'admin123' }
+  proj.teams = Array.isArray(proj.teams)
+    ? proj.teams.map(backfillTeam)
+    : []
+  return proj
+}
+
+export function normalizeProjects(raw) {
+  if (!Array.isArray(raw)) return []
+  return raw.map(backfillProject).filter(p => p.id && p.name)
+}
+
 export function cleanImported(rawArray) {
   return rawArray
     .map((t, i) => backfillTeam({

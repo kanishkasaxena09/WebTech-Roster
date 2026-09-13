@@ -10,23 +10,31 @@ export function Logo({ size = 14 }) {
 }
 
 export default function Login() {
-  const { login } = useApp()
+  const { projects, login } = useApp()
   const [tab, setTab] = useState('team')
+  const [projectId, setProjectId] = useState(projects[0] ? projects[0].id : '')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
 
+  const project = projects.find(p => p.id === projectId) || projects[0]
+
   const submit = (e) => {
     e.preventDefault()
     setError('')
+    if (!project) { setError('No project available yet.'); return }
     if (!username || !password) {
       setError('Enter a username and password.')
       return
     }
-    if (!login(username, password, tab)) {
-      setError('Incorrect username or password.')
+    if (!login(project.id, username, password, tab)) {
+      setError('Incorrect username or password for this project.')
     }
   }
+
+  const teamHint = project && project.teams[0]
+    ? `e.g. ${project.teams[0].username}`
+    : 'team username'
 
   return (
     <div className="login-wrap">
@@ -37,6 +45,24 @@ export default function Login() {
           </span>
           WebTech Roster
         </div>
+
+        {projects.length > 1 && (
+          <>
+            <div className="login-label">Project</div>
+            <div className="login-proj">
+              {projects.map(p => (
+                <button
+                  type="button"
+                  key={p.id}
+                  className={p.id === project.id ? 'active' : ''}
+                  onClick={() => { setProjectId(p.id); setError('') }}
+                >
+                  {p.name}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
 
         <div className="login-tabs">
           <button type="button" className={tab === 'team' ? 'active' : ''} onClick={() => { setTab('team'); setError('') }}>
@@ -50,7 +76,7 @@ export default function Login() {
         <div className="login-field">
           <label>Username</label>
           <input type="text" value={username} onChange={e => setUsername(e.target.value)}
-            placeholder={tab === 'team' ? 'e.g. propmatch' : 'admin'} autoComplete="username" />
+            placeholder={tab === 'team' ? teamHint : (project ? `e.g. ${project.admin.username}` : 'admin')} autoComplete="username" />
         </div>
         <div className="login-field">
           <label>Password</label>

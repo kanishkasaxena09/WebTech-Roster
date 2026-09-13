@@ -6,7 +6,7 @@ import { initials, colorFor, norm, dedupeMembers, progressPct } from '../utils'
 import { PROGRESS_ITEMS } from '../seed'
 
 export default function TeamApp() {
-  const { teams, session, syncState, updateTeams, toast, logout } = useApp()
+  const { teams, session, syncState, live, updateTeams, toast, logout } = useApp()
   const team = teams.find(t => t.id === session.teamId)
   if (!team) return null
 
@@ -48,7 +48,7 @@ export default function TeamApp() {
             <div className="page-sub">Update your project details and log your progress — admin sees this live.</div>
           </div>
         </div>
-        <SyncNote state={syncState} />
+        <SyncNote state={syncState} live={live} />
 
         <ProjectForm key={team.id} team={team} teams={teams} onSave={saveProfile} />
         <div className="card">
