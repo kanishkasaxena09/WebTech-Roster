@@ -67,6 +67,7 @@ body{
 .sync-note{ font-size:11px; color:var(--muted); display:flex; align-items:center; gap:6px; margin-bottom:16px; }
 .sync-dot{ width:6px; height:6px; border-radius:50%; background:var(--pink); }
 .sync-dot.err{ background:var(--red); }
+.sync-dot.local{ background:#E3B34F; box-shadow:0 0 0 3px rgba(227,179,79,.2); }
 
 .row1{ display:grid; grid-template-columns:1.7fr 1fr; gap:18px; margin-bottom:18px; }
 .row2{ display:grid; grid-template-columns:1.4fr 1fr; gap:18px; }

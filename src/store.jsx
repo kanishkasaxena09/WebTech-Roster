@@ -72,16 +72,18 @@ export function AppProvider({ children }) {
 
     Promise.race([
       boot,
-      new Promise(resolve => setTimeout(() => resolve('timeout'), 5000)),
+      new Promise(resolve => setTimeout(() => resolve('timeout'), 30000)),
     ]).then((result) => {
       if (cancelled) return
 
       let finalProjects
+      let status = 'ok'
       if (result === 'timeout') {
         console.warn('Remote boot timed out — continuing with local data.')
         finalProjects = normalizeProjects(local.get('projects'))
         if (!finalProjects.length) finalProjects = cloneSeed()
-        toast('Live sync is unavailable right now — using local storage.', 'error')
+        status = 'local'
+        toast('Live sync is offline right now — showing local data. Changes won\'t reach the server until it responds.', 'error')
       } else {
         finalProjects = result
       }
@@ -94,7 +96,7 @@ export function AppProvider({ children }) {
       } else if (savedSession) {
         local.remove('session')
       }
-      setSyncState('ok')
+      setSyncState(status)
       setBooted(true)
     })
 
@@ -109,6 +111,16 @@ export function AppProvider({ children }) {
     })
     return () => { offProjects() }
   }, [])
+
+  useEffect(() => {
+    if (!live) return
+    return shared.onConnectivityChange((online) => {
+      setSyncState(prev => {
+        if (prev === 'loading') return prev
+        return online ? 'ok' : 'local'
+      })
+    })
+  }, [live])
 
   const login = useCallback((projectId, user, pass, tab) => {
     if (!projectId) return false
