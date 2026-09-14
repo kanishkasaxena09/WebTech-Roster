@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url'
 const PORT = process.env.PORT || 3000
 const TOKEN = process.env.SYNC_TOKEN || '' // optional: set to protect writes
 const DB_DIR = path.dirname(fileURLToPath(import.meta.url))
-const DB_FILE = process.env.DB_FILE ? path.resolve(DB_FILE) : path.join(DB_DIR, 'data.json')
+const DB_FILE = process.env.DB_FILE ? path.resolve(process.env.DB_FILE) : path.join(DB_DIR, 'data.json')
 
 let data = {}
 try {
@@ -23,7 +23,9 @@ const sseClients = new Set()
 
 function broadcast(key, value) {
   const payload = `data: ${JSON.stringify({ key, value })}\n\n`
-  for (const res of sseClients) res.write(payload)
+  for (const res of sseClients) {
+    try { res.write(payload) } catch { sseClients.delete(res) }
+  }
 }
 
 function send(res, status, body) {
@@ -71,6 +73,7 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
+      'X-Accel-Buffering': 'no',
       Connection: 'keep-alive',
     })
     res.write(`data: ${JSON.stringify({ ready: true })}\n\n`)
@@ -131,6 +134,14 @@ const server = http.createServer(async (req, res) => {
     send(res, 500, { error: 'Server error' })
   }
 })
+
+const HEARTBEAT_MS = 15000
+setInterval(() => {
+  if (sseClients.size === 0) return
+  for (const res of sseClients) {
+    try { res.write(': ping\n\n') } catch { sseClients.delete(res) }
+  }
+}, HEARTBEAT_MS).unref()
 
 server.listen(PORT, () => {
   console.log(`Sync server running at http://localhost:${PORT}`)
