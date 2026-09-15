@@ -1,11 +1,16 @@
 import { useRef, useState } from 'react'
 import { useApp } from '../../store'
-import { randomPass, cleanImported } from '../../utils'
+import { cleanImported } from '../../utils'
 
 export default function SettingsView({ requestConfirm }) {
-  const { teams, updateTeams, setAdminPassword, resetData, toast, project } = useApp()
+  const { teams, updateTeams, toggleTeamEnabled, setAdminPassword, resetData, toast, project } = useApp()
   const importRef = useRef(null)
   const [newPass, setNewPass] = useState('')
+
+  const handleToggle = (t) => {
+    const enabled = toggleTeamEnabled(t.id)
+    toast(enabled ? `"${t.project}" re-enabled.` : `"${t.project}" disabled.`)
+  }
 
   const exportData = () => {
     const blob = new Blob([JSON.stringify(teams, null, 2)], { type: 'application/json' })
@@ -75,7 +80,7 @@ export default function SettingsView({ requestConfirm }) {
       'Regenerate password?',
       `A new password will be created for "${t.project}". Their old password will stop working.`,
       () => {
-        const next = teams.map(x => x.id === t.id ? { ...x, password: randomPass() } : x)
+        const next = teams.map(x => x.id === t.id ? { ...x, password: Math.random().toString(36).slice(-4) + Math.random().toString(36).slice(-4) } : x)
         updateTeams(next)
         const updated = next.find(x => x.id === t.id)
         toast(`New password for ${t.project}: ${updated.password}`)
@@ -136,7 +141,7 @@ export default function SettingsView({ requestConfirm }) {
           <div className="card-title"><div className="t">Team accounts</div></div>
           <table className="cred-table">
             <thead>
-              <tr><th>Project</th><th>Username</th><th>Password</th><th></th></tr>
+              <tr><th>Project</th><th>Username</th><th>Password</th><th>Status</th><th></th></tr>
             </thead>
             <tbody>
               {teams.map(t => (
@@ -144,6 +149,11 @@ export default function SettingsView({ requestConfirm }) {
                   <td>{t.project}</td>
                   <td><code>{t.username}</code></td>
                   <td><code>{t.password}</code></td>
+                  <td>
+                    <button className={`mini-btn${t.enabled === false ? ' danger' : ''}`} onClick={() => handleToggle(t)}>
+                      {t.enabled === false ? 'Disabled' : 'Enabled'}
+                    </button>
+                  </td>
                   <td><button className="mini-btn" onClick={() => handleRegen(t)}>Regenerate password</button></td>
                 </tr>
               ))}

@@ -9,6 +9,11 @@ function serverUrl() {
   return (import.meta.env.VITE_SERVER_URL || '').replace(/\/+$/, '')
 }
 
+function syncToken() {
+  const token = import.meta.env.VITE_SYNC_TOKEN || ''
+  return typeof token === 'string' && token.trim() !== '' ? token : ''
+}
+
 function localGet(key) {
   try {
     const raw = localStorage.getItem(key)
@@ -46,15 +51,21 @@ async function apiGet(key) {
   return res.json()
 }
 async function apiSet(key, value) {
+  const headers = { 'Content-Type': 'application/json' }
+  const token = syncToken()
+  if (token) headers['x-sync-token'] = token
   const res = await fetchWithTimeout(`${serverUrl()}/data/${encodeURIComponent(key)}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify(value),
   })
   if (!res.ok) throw new Error(`Server returned ${res.status}`)
 }
 async function apiRemove(key) {
-  const res = await fetchWithTimeout(`${serverUrl()}/data/${encodeURIComponent(key)}`, { method: 'DELETE' })
+  const headers = {}
+  const token = syncToken()
+  if (token) headers['x-sync-token'] = token
+  const res = await fetchWithTimeout(`${serverUrl()}/data/${encodeURIComponent(key)}`, { method: 'DELETE', headers })
   if (!res.ok) throw new Error(`Server returned ${res.status}`)
 }
 

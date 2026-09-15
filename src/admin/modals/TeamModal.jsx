@@ -1,11 +1,13 @@
 import { useState } from 'react'
-import { norm, dedupeMembers } from '../../utils'
+import { norm, dedupeMembers, slugify } from '../../utils'
 
 export default function TeamModal({ team, teams, onClose, onSave }) {
   const [project, setProject] = useState(team ? team.project : '')
   const [description, setDescription] = useState(team ? (team.description || '') : '')
   const [leader, setLeader] = useState(team ? team.leader : '')
   const [membersRaw, setMembersRaw] = useState(team ? team.members.join(', ') : '')
+  const [username, setUsername] = useState(team ? (team.username || '') : '')
+  const [enabled, setEnabled] = useState(team ? team.enabled !== false : true)
   const [error, setError] = useState('')
 
   const submit = () => {
@@ -17,7 +19,10 @@ export default function TeamModal({ team, teams, onClose, onSave }) {
     if (members.length < 1) { setError('Add at least one member besides the leader.'); return }
     const clash = teams.some(t => t.id !== (team && team.id) && norm(t.project) === norm(p))
     if (clash) { setError(`A team is already working on "${p}". Project names must be unique.`); return }
-    onSave({ project: p, description: d, leader: l, members })
+    const uname = username.trim() || slugify(p)
+    const uclash = teams.some(t => t.id !== (team && team.id) && norm(t.username) === norm(uname))
+    if (uclash) { setError(`The login username "${uname}" is already taken. Choose another.`); return }
+    onSave({ project: p, description: d, leader: l, members, username: uname, enabled })
   }
 
   return (
@@ -40,6 +45,19 @@ export default function TeamModal({ team, teams, onClose, onSave }) {
           <label>Other members</label>
           <input value={membersRaw} onChange={e => setMembersRaw(e.target.value)} placeholder="comma-separated, e.g. Vishal, Suryansh" />
           <div className="hint">Separate names with commas. At least 1 required, besides the leader.</div>
+        </div>
+        <div className="task-grid-fields">
+          <div className="field">
+            <label>Login username</label>
+            <input value={username} onChange={e => setUsername(e.target.value)} placeholder={`auto: ${slugify(project) || 'team'}`} />
+          </div>
+          <div className="field">
+            <label>Login enabled</label>
+            <label className="toggle-row">
+              <input type="checkbox" checked={enabled} onChange={e => setEnabled(e.target.checked)} />
+              <span>Team can sign in</span>
+            </label>
+          </div>
         </div>
         {error && <div className="error-msg" style={{ display: 'block' }}>{error}</div>}
         <div className="modal-actions">

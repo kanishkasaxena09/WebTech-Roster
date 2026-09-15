@@ -4,6 +4,7 @@ import Splash from './components/Splash'
 import Login from './components/Login'
 import TeamApp from './team/TeamApp'
 import AdminApp from './admin/AdminApp'
+import MainAdminApp from './main/MainAdminApp'
 
 export default function App() {
   const { booted, session, teams, toast, logout } = useApp()
@@ -40,7 +41,7 @@ export default function App() {
   return (
     <>
       <Splash done={splashDone} />
-      {!session ? <Login /> : session.role === 'admin' ? <AdminApp /> : <TeamApp />}
+      {!session ? <Login /> : session.role === 'admin' ? <AdminApp /> : session.role === 'main' ? <MainAdminApp /> : <TeamApp />}
     </>
   )
 }

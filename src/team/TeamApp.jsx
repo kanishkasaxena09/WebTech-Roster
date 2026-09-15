@@ -52,6 +52,34 @@ export default function TeamApp() {
 
         <ProjectForm key={team.id} team={team} teams={teams} onSave={saveProfile} />
         <div className="card">
+          <div className="card-title"><div className="t">Tasks assigned by your admin</div></div>
+          {(team.tasks || []).length === 0
+            ? <div className="empty">No tasks yet. Ask your admin to add some — they appear here automatically.</div>
+            : (team.tasks || []).map(t => (
+              <div key={t.id} className="task-row">
+                <div className="task-main">
+                  <span className={`status-icon s-${t.status}`}>{t.status === 'done' ? '●' : t.status === 'in_progress' ? '◐' : '○'}</span>
+                  <div className="task-body">
+                    <div className="task-title-line">
+                      <span className="task-title">{t.title}</span>
+                      {t.deadline && <span className="task-deadline">due {t.deadline}</span>}
+                    </div>
+                    <div className="task-sub">
+                      <span className={`prio-badge ${t.priority || 'medium'}`}>{t.priority || 'medium'}</span>
+                      <span className={`status-select`} style={{ fontSize: 10.5 }}>{t.status === 'done' ? 'Done' : t.status === 'in_progress' ? 'In progress' : 'To do'}</span>
+                      {t.assignedTo && <span className="chip">{t.assignedTo}</span>}
+                      {t.description && <span className="task-desc">{t.description}</span>}
+                    </div>
+                    <div className="task-progress">
+                      <div className="bar-line"><div className="fill" style={{ width: `${Number(t.progress) || 0}%` }} /></div>
+                      <span className="pct">{Number(t.progress) || 0}%</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+        </div>
+        <div className="card">
           <div className="card-title"><div className="t">Progress checklist</div></div>
           <div className="progress-summary">
             <ProgressRing team={team} />

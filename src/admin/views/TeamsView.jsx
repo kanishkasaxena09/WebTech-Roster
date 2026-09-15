@@ -2,7 +2,7 @@ import { useApp } from '../../store'
 import SyncNote from '../../components/SyncNote'
 import { colorFor, initials, matchesSearch, teamSize } from '../../utils'
 
-export default function TeamsView({ search, onAdd, onEdit, onDelete, onOpen }) {
+export default function TeamsView({ search, onAdd, onEdit, onDelete, onOpen, onToggle }) {
   const { teams, syncState, live } = useApp()
   const visible = teams.filter(t => matchesSearch(t, search))
   const totalPeople = teams.reduce((s, t) => s + teamSize(t), 0)
@@ -52,7 +52,7 @@ export default function TeamsView({ search, onAdd, onEdit, onDelete, onOpen }) {
               : teams.map((t, i) => (
                 <div key={t.id} className="bar-col">
                   <div className="bar-track">
-                    <div className={`bar-fill${i === topIdx ? ' top' : ''}`}
+                    <div className={`bar-fill${i === topIdx ? ' top' : ''}${t.enabled === false ? ' off' : ''}`}
                       style={{ height: `${(teamSize(t) / maxSize * 100).toFixed(0)}%` }} />
                   </div>
                   <div className="lbl">{t.project}</div>
@@ -110,13 +110,17 @@ export default function TeamsView({ search, onAdd, onEdit, onDelete, onOpen }) {
                   <div className="team-row-main" onClick={() => onOpen(t.id)}>
                     <div className="t-avatar" style={{ background: colorFor(t.id) }}>{initials(t.leader)}</div>
                     <div className="t-info">
-                      <div className="p">{t.project}</div>
+                      <div className="p">{t.project}{t.enabled === false && <span className="enabled-badge" style={{ marginLeft: 6 }}>Disabled</span>}</div>
                       <div className="s">{t.leader}</div>
                     </div>
                     <div className="bar-line"><div className="fill" style={{ width: `${(teamSize(t) / maxSize * 100).toFixed(0)}%` }} /></div>
                     <div className="t-count">{teamSize(t)} members</div>
                   </div>
                   <div className="t-actions">
+                    {t.enabled === false
+                      ? <button className="icon-btn" onClick={() => onToggle(t.id)}>enable</button>
+                      : <button className="icon-btn" onClick={() => onToggle(t.id)}>disable</button>
+                    }
                     <button className="icon-btn" onClick={() => onEdit(t.id)}>edit</button>
                     <button className="icon-btn danger" onClick={() => onDelete(t)}>delete</button>
                   </div>
