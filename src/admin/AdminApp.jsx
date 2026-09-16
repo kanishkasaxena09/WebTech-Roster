@@ -95,7 +95,7 @@ export default function AdminApp() {
       toast('Team updated.')
     } else {
       const t = addTeam(data)
-      toast(`Team added. Login: ${t.username}`)
+      toast(t ? `Team added. Login: ${t.username} / ${t.password}` : 'Could not add team.')
     }
     setEditingId(null)
   }

@@ -873,7 +873,7 @@ export default function MainAdminApp() {
       toast('Team updated.')
     } else {
       const t = addTeamToProject(pid, data.team)
-      toast(t ? `Team added to ${projectTitle(projects.find(x => x.id === pid) || {})}. Login: ${t.username}` : 'Could not add team.')
+      toast(t ? `Team added to ${projectTitle(projects.find(x => x.id === pid) || {})}. Login: ${t.username} / ${t.password}` : 'Could not add team.')
     }
     setTeamModal(null)
   }
