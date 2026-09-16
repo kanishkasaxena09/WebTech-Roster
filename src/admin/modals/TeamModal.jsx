@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { norm, dedupeMembers, slugify } from '../../utils'
+import { norm, dedupeMembers, slugify, randomPass } from '../../utils'
 
 export default function TeamModal({ team, teams, onClose, onSave }) {
   const [project, setProject] = useState(team ? team.project : '')
@@ -7,6 +7,7 @@ export default function TeamModal({ team, teams, onClose, onSave }) {
   const [leader, setLeader] = useState(team ? team.leader : '')
   const [membersRaw, setMembersRaw] = useState(team ? team.members.join(', ') : '')
   const [username, setUsername] = useState(team ? (team.username || '') : '')
+  const [password, setPassword] = useState(team ? (team.password || '') : '')
   const [enabled, setEnabled] = useState(team ? team.enabled !== false : true)
   const [error, setError] = useState('')
 
@@ -22,7 +23,7 @@ export default function TeamModal({ team, teams, onClose, onSave }) {
     const uname = username.trim() || slugify(p)
     const uclash = teams.some(t => t.id !== (team && team.id) && norm(t.username) === norm(uname))
     if (uclash) { setError(`The login username "${uname}" is already taken. Choose another.`); return }
-    onSave({ project: p, description: d, leader: l, members, username: uname, enabled })
+    onSave({ project: p, description: d, leader: l, members, username: uname, password, enabled })
   }
 
   return (
@@ -50,6 +51,10 @@ export default function TeamModal({ team, teams, onClose, onSave }) {
           <div className="field">
             <label>Login username</label>
             <input value={username} onChange={e => setUsername(e.target.value)} placeholder={`auto: ${slugify(project) || 'team'}`} />
+          </div>
+          <div className="field">
+            <label>Login password</label>
+            <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder={team ? 'keep current' : `auto: ${randomPass()}`} />
           </div>
           <div className="field">
             <label>Login enabled</label>
