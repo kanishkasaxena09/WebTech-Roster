@@ -58,6 +58,12 @@ async function ensureSchema(client) {
       PRIMARY KEY (team_id, progress_key)
     )
   `)
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS kv_store (
+      key VARCHAR(64) PRIMARY KEY,
+      value JSONB NOT NULL
+    )
+  `)
 }
 
 async function loadProjects() {
@@ -154,6 +160,19 @@ async function saveProjects(projects) {
   }
 }
 
+async function loadAdmins() {
+  const { rows } = await pool.query("SELECT value FROM kv_store WHERE key = 'admins'")
+  if (rows.length === 0) return null
+  return rows[0].value
+}
+
+async function saveAdmins(value) {
+  await pool.query(
+    "INSERT INTO kv_store (key, value) VALUES ('admins', $1) ON CONFLICT (key) DO UPDATE SET value = $1",
+    [JSON.stringify(value)]
+  )
+}
+
 async function deleteAllProjects() {
   const client = await pool.connect()
   try {
@@ -246,6 +265,10 @@ const server = http.createServer(async (req, res) => {
       if (key === 'projects') {
         const projects = await loadProjects()
         send(res, 200, projects)
+      } else if (key === 'admins') {
+        const admins = await loadAdmins()
+        if (admins) send(res, 200, admins)
+        else send(res, 404, { error: 'Key not found' })
       } else {
         send(res, 404, { error: 'Key not found' })
       }
@@ -275,8 +298,16 @@ const server = http.createServer(async (req, res) => {
         await saveProjects(value)
         broadcast(key, value)
         send(res, 200, { ok: true })
+      } else if (key === 'admins') {
+        if (!value || typeof value !== 'object' || Array.isArray(value)) {
+          send(res, 400, { error: 'admins value must be an object' })
+          return
+        }
+        await saveAdmins(value)
+        broadcast(key, value)
+        send(res, 200, { ok: true })
       } else {
-        send(res, 400, { error: 'Only the "projects" key is supported' })
+        send(res, 400, { error: 'Only "projects" and "admins" keys are supported' })
       }
       return
     }
@@ -313,6 +344,23 @@ async function start() {
     console.log('PostgreSQL connection successful')
     await ensureSchema(client)
     console.log('PostgreSQL schema ready')
+
+    const { rows } = await client.query("SELECT 1 FROM kv_store WHERE key = 'admins' LIMIT 1")
+    if (rows.length === 0) {
+      const defaultAdmins = {
+        main: {
+          username: 'mainadmin',
+          password: 'main123',
+          enabled: true,
+          name: 'Website Admin',
+        },
+      }
+      await client.query(
+        "INSERT INTO kv_store (key, value) VALUES ('admins', $1)",
+        [JSON.stringify(defaultAdmins)]
+      )
+      console.log('Default Main Admin account initialized.')
+    }
   } finally {
     client.release()
   }

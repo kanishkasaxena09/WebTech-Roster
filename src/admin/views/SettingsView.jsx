@@ -3,8 +3,9 @@ import { useApp } from '../../store'
 import { cleanImported } from '../../utils'
 
 export default function SettingsView({ requestConfirm }) {
-  const { teams, updateTeams, toggleTeamEnabled, setAdminPassword, resetData, toast, project } = useApp()
+  const { teams, project, updateTeams, toggleTeamEnabled, setAdminPassword, resetData, toast } = useApp()
   const importRef = useRef(null)
+  const [newUser, setNewUser] = useState('')
   const [newPass, setNewPass] = useState('')
 
   const handleToggle = (t) => {
@@ -67,12 +68,14 @@ export default function SettingsView({ requestConfirm }) {
     )
   }
 
-  const handleChangeAdminPassword = () => {
-    const val = newPass.trim()
-    if (!val) { toast('Enter a new password first.', 'error'); return }
-    setAdminPassword(val)
+  const handleChangeAdminCredentials = () => {
+    const u = newUser.trim()
+    const p = newPass.trim()
+    if (!u && !p) { toast('Enter a new username or password first.', 'error'); return }
+    setAdminPassword(p || undefined, u || undefined)
+    setNewUser('')
     setNewPass('')
-    toast('Admin password updated.')
+    toast(u && p ? 'Admin credentials updated.' : u ? 'Admin username updated.' : 'Admin password updated.')
   }
 
   const handleRegen = (t) => {
@@ -124,12 +127,16 @@ export default function SettingsView({ requestConfirm }) {
         </div>
 
         <div className="card">
-          <div className="card-title"><div className="t">Admin password</div></div>
+          <div className="card-title"><div className="t">Admin credentials</div></div>
           <div className="field">
-            <label>New password</label>
+            <label>Username</label>
+            <input type="text" value={newUser} onChange={e => setNewUser(e.target.value)} placeholder={project?.admin?.username || 'Leave blank to keep current'} />
+          </div>
+          <div className="field">
+            <label>Password</label>
             <input type="password" value={newPass} onChange={e => setNewPass(e.target.value)} placeholder="Leave blank to keep current" />
           </div>
-          <button className="pill-btn" onClick={handleChangeAdminPassword}>Update password</button>
+          <button className="pill-btn" onClick={handleChangeAdminCredentials}>Update credentials</button>
           <div className="card-title" style={{ marginTop: 22 }}><div className="t">About</div></div>
           <ul className="about-list">
             <li>Team accounts log in below and can edit <b>their own</b> project, description, members, and progress.</li>

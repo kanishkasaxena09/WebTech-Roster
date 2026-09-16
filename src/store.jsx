@@ -486,10 +486,13 @@ export function AppProvider({ children }) {
       status === 'done' ? { status, progress: 100 } : { status })
   }, [session, updateAnyTask])
 
-  const setAdminPassword = useCallback((pass) => {
+  const setAdminPassword = useCallback((pass, username) => {
     if (!isAdminish()) return false
-    return mutateProject(session.projectId, p => ({ ...p, admin: { ...p.admin, password: pass } }))
-  }, [isAdminish, session, mutateProject])
+    const patch = { ...((projects.find(p => p.id === session.projectId) || {}).admin || {}) }
+    if (typeof pass === 'string' && pass.trim()) patch.password = pass.trim()
+    if (typeof username === 'string' && username.trim()) patch.username = username.trim()
+    return mutateProject(session.projectId, p => ({ ...p, admin: patch }))
+  }, [isAdminish, session, projects, mutateProject])
 
   // ── main admin account actions ───────────────────────────────────────
   const updateMainAdmin = useCallback((patch) => {
