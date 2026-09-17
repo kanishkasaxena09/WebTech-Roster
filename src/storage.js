@@ -44,22 +44,29 @@ function fetchWithTimeout(url, options = {}, ms = 30000) {
   return fetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(timer))
 }
 
+let _serverVersion = null
+
 async function apiGet(key) {
   const res = await fetchWithTimeout(`${serverUrl()}/data/${encodeURIComponent(key)}`)
   if (res.status === 404) return null
   if (!res.ok) throw new Error(`Server returned ${res.status}`)
+  const v = res.headers.get('x-data-version')
+  if (v != null) _serverVersion = v
   return res.json()
 }
 async function apiSet(key, value) {
   const headers = { 'Content-Type': 'application/json' }
   const token = syncToken()
   if (token) headers['x-sync-token'] = token
+  if (_serverVersion != null) headers['x-data-version'] = _serverVersion
   const res = await fetchWithTimeout(`${serverUrl()}/data/${encodeURIComponent(key)}`, {
     method: 'PUT',
     headers,
     body: JSON.stringify(value),
   })
   if (!res.ok) throw new Error(`Server returned ${res.status}`)
+  const v = res.headers.get('x-data-version')
+  if (v != null) _serverVersion = v
 }
 async function apiRemove(key) {
   const headers = {}

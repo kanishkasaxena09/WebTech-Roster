@@ -109,30 +109,70 @@ async function loadProjects() {
   }))
 }
 
-async function saveProjects(projects) {
+async function saveProjects(projects, allowDelete = false) {
   const client = await pool.connect()
   try {
     await client.query('BEGIN')
 
-    await client.query('DELETE FROM team_progress')
-    await client.query('DELETE FROM team_members')
-    await client.query('DELETE FROM teams')
-    await client.query('DELETE FROM projects')
+    const submittedTeamIds = new Set()
+    for (const p of projects) {
+      for (const t of (p.teams || [])) {
+        submittedTeamIds.add(t.id)
+      }
+    }
+
+    if (allowDelete) {
+      const { rows: dbTeamRows } = await client.query('SELECT id FROM teams')
+      for (const row of dbTeamRows) {
+        if (!submittedTeamIds.has(row.id)) {
+          await client.query('DELETE FROM team_members WHERE team_id = $1', [row.id])
+          await client.query('DELETE FROM team_progress WHERE team_id = $1', [row.id])
+          await client.query('DELETE FROM teams WHERE id = $1', [row.id])
+        }
+      }
+
+      const submittedProjectIds = new Set(projects.map(p => p.id))
+      const { rows: dbProjectRows } = await client.query('SELECT id FROM projects')
+      for (const row of dbProjectRows) {
+        if (!submittedProjectIds.has(row.id)) {
+          await client.query('DELETE FROM team_members WHERE team_id IN (SELECT id FROM teams WHERE project_id = $1)', [row.id])
+          await client.query('DELETE FROM team_progress WHERE team_id IN (SELECT id FROM teams WHERE project_id = $1)', [row.id])
+          await client.query('DELETE FROM teams WHERE project_id = $1', [row.id])
+          await client.query('DELETE FROM projects WHERE id = $1', [row.id])
+        }
+      }
+    }
 
     for (let pi = 0; pi < projects.length; pi++) {
       const p = projects[pi]
       await client.query(
-        'INSERT INTO projects (id, name, admin_username, admin_password, insert_order) VALUES ($1, $2, $3, $4, $5)',
+        `INSERT INTO projects (id, name, admin_username, admin_password, insert_order)
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (id) DO UPDATE SET
+           name = EXCLUDED.name,
+           admin_username = EXCLUDED.admin_username,
+           admin_password = EXCLUDED.admin_password,
+           insert_order = EXCLUDED.insert_order`,
         [p.id, p.name, p.admin?.username || 'admin', p.admin?.password || 'admin123', pi]
       )
 
       for (let ti = 0; ti < (p.teams || []).length; ti++) {
         const t = p.teams[ti]
         await client.query(
-          'INSERT INTO teams (id, project_id, project_name, leader, description, username, password, insert_order) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
+          `INSERT INTO teams (id, project_id, project_name, leader, description, username, password, insert_order)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+           ON CONFLICT (id) DO UPDATE SET
+             project_id = EXCLUDED.project_id,
+             project_name = EXCLUDED.project_name,
+             leader = EXCLUDED.leader,
+             description = EXCLUDED.description,
+             username = EXCLUDED.username,
+             password = EXCLUDED.password,
+             insert_order = EXCLUDED.insert_order`,
           [t.id, p.id, t.project, t.leader, t.description || '', t.username, t.password, ti]
         )
 
+        await client.query('DELETE FROM team_members WHERE team_id = $1', [t.id])
         for (let i = 0; i < (t.members || []).length; i++) {
           await client.query(
             'INSERT INTO team_members (team_id, member_name, sort_order) VALUES ($1, $2, $3)',
@@ -143,13 +183,19 @@ async function saveProjects(projects) {
         if (t.progress && typeof t.progress === 'object') {
           for (const [key, val] of Object.entries(t.progress)) {
             await client.query(
-              'INSERT INTO team_progress (team_id, progress_key, completed) VALUES ($1, $2, $3)',
+              `INSERT INTO team_progress (team_id, progress_key, completed)
+               VALUES ($1, $2, $3)
+               ON CONFLICT (team_id, progress_key) DO UPDATE SET completed = EXCLUDED.completed`,
               [t.id, key, !!val]
             )
           }
         }
       }
     }
+
+    await client.query(
+      "INSERT INTO kv_store (key, value) VALUES ('data_epoch', to_jsonb(1)) ON CONFLICT (key) DO UPDATE SET value = to_jsonb((kv_store.value #>> '{}' )::bigint + 1)"
+    )
 
     await client.query('COMMIT')
   } catch (err) {
@@ -158,6 +204,13 @@ async function saveProjects(projects) {
   } finally {
     client.release()
   }
+}
+
+async function loadEpoch() {
+  const { rows } = await pool.query("SELECT value FROM kv_store WHERE key = 'data_epoch'")
+  if (rows.length === 0) return 0
+  const v = rows[0].value
+  return Number(v) || 0
 }
 
 async function loadAdmins() {
@@ -229,7 +282,8 @@ const server = http.createServer(async (req, res) => {
 
   const cors = () => {
     res.setHeader('Access-Control-Allow-Origin', '*')
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-sync-token')
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-sync-token, x-data-version')
+    res.setHeader('Access-Control-Expose-Headers', 'x-data-version')
     res.setHeader('Access-Control-Allow-Methods', 'GET, PUT, DELETE, OPTIONS')
   }
   cors()
@@ -263,7 +317,8 @@ const server = http.createServer(async (req, res) => {
   try {
     if (req.method === 'GET') {
       if (key === 'projects') {
-        const projects = await loadProjects()
+        const [projects, epoch] = await Promise.all([loadProjects(), loadEpoch()])
+        res.setHeader('X-Data-Version', String(epoch))
         send(res, 200, projects)
       } else if (key === 'admins') {
         const admins = await loadAdmins()
@@ -295,8 +350,13 @@ const server = http.createServer(async (req, res) => {
           send(res, 400, { error: 'projects value must be an array' })
           return
         }
-        await saveProjects(value)
+        const submittedVersion = req.headers['x-data-version']
+        const currentEpoch = await loadEpoch()
+        const allowDelete = submittedVersion != null && String(currentEpoch) === String(submittedVersion)
+        await saveProjects(value, allowDelete)
+        const newEpoch = await loadEpoch()
         broadcast(key, value)
+        res.setHeader('X-Data-Version', String(newEpoch))
         send(res, 200, { ok: true })
       } else if (key === 'admins') {
         if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -314,7 +374,23 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === 'DELETE') {
       if (key === 'projects') {
-        await deleteAllProjects()
+        const client = await pool.connect()
+        try {
+          await client.query('BEGIN')
+          await client.query('DELETE FROM team_progress')
+          await client.query('DELETE FROM team_members')
+          await client.query('DELETE FROM teams')
+          await client.query('DELETE FROM projects')
+          await client.query(
+            "INSERT INTO kv_store (key, value) VALUES ('data_epoch', to_jsonb(1)) ON CONFLICT (key) DO UPDATE SET value = to_jsonb((kv_store.value #>> '{}')::bigint + 1)"
+          )
+          await client.query('COMMIT')
+        } catch (err) {
+          await client.query('ROLLBACK')
+          throw err
+        } finally {
+          client.release()
+        }
         broadcast(key, null)
         send(res, 200, { ok: true })
       } else {

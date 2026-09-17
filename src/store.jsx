@@ -84,8 +84,6 @@ export function AppProvider({ children }) {
           } catch (err) {
             console.error('Migration failed:', err)
           }
-          await shared.set('projects', finalProjects)
-            .catch(err => console.error(err))
         }
 
         const savedAdmins = await shared.get('admins')
